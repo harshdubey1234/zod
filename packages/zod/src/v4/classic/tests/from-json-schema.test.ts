@@ -883,6 +883,86 @@ test("array without items", () => {
   expect(schema.parse([1, "string", true])).toEqual([1, "string", true]);
 });
 
+test("array without items but with minItems and maxItems", () => {
+  const schema = fromJSONSchema({
+    type: "array",
+    minItems: 2,
+    maxItems: 4,
+  });
+
+  // Should fail: empty array
+  expect(schema.safeParse([]).success).toBe(false);
+
+  // Should fail: only 1 item
+  expect(schema.safeParse([1]).success).toBe(false);
+
+  // Should pass: exactly minItems
+  expect(schema.safeParse([1, 2]).success).toBe(true);
+
+  // Should pass: between minItems and maxItems
+  expect(schema.safeParse([1, 2, 3]).success).toBe(true);
+
+  // Should pass: exactly maxItems
+  expect(schema.safeParse([1, 2, 3, 4]).success).toBe(true);
+
+  // Should fail: exceeds maxItems
+  expect(schema.safeParse([1, 2, 3, 4, 5]).success).toBe(false);
+});
+
+test("array without items but with only minItems", () => {
+  const schema = fromJSONSchema({
+    type: "array",
+    minItems: 3,
+  });
+
+  // Should fail: less than minItems
+  expect(schema.safeParse([]).success).toBe(false);
+  expect(schema.safeParse([1]).success).toBe(false);
+  expect(schema.safeParse([1, 2]).success).toBe(false);
+
+  // Should pass: meets or exceeds minItems
+  expect(schema.safeParse([1, 2, 3]).success).toBe(true);
+  expect(schema.safeParse([1, 2, 3, 4, 5]).success).toBe(true);
+});
+
+test("array without items but with only maxItems", () => {
+  const schema = fromJSONSchema({
+    type: "array",
+    maxItems: 2,
+  });
+
+  // Should pass: within maxItems
+  expect(schema.safeParse([]).success).toBe(true);
+  expect(schema.safeParse([1]).success).toBe(true);
+  expect(schema.safeParse([1, 2]).success).toBe(true);
+
+  // Should fail: exceeds maxItems
+  expect(schema.safeParse([1, 2, 3]).success).toBe(false);
+  expect(schema.safeParse([1, 2, 3, 4]).success).toBe(false);
+});
+
+test("toJSONSchema round-trip preserves minItems/maxItems without items", () => {
+  const schema = fromJSONSchema({
+    type: "array",
+    minItems: 2,
+    maxItems: 4,
+  });
+
+  const jsonSchema = z.toJSONSchema(schema);
+
+  // Should preserve type
+  expect(jsonSchema.type).toBe("array");
+
+  // Should preserve minItems
+  expect(jsonSchema.minItems).toBe(2);
+
+  // Should preserve maxItems
+  expect(jsonSchema.maxItems).toBe(4);
+
+  // Should have items: {} (meaning any items allowed)
+  expect(jsonSchema.items).toEqual({});
+});
+
 test("mixed enum types", () => {
   const schema = fromJSONSchema({
     enum: ["string", 42, true, null],
